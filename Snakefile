@@ -13,7 +13,7 @@ ADAPTERS_FILE = config["adapters_file"]
 
 # Directorios principales (📂 Organizados correctamente)
 RESULTS_DIR = "results"
-RAW_DATA_DIR = "../00_RAW_DATA"  # ✅ Ruta corregida
+RAW_DATA_DIR = "00_RAW_DATA"  # ✅ Ruta corregida para evitar problemas de ejecución
 QC_DIR = os.path.join(RESULTS_DIR, "01_QC")
 CLEAN_DATA_DIR = os.path.join(RESULTS_DIR, "02_CLEAN_DATA")
 ASSEMBLY_DIR = os.path.join(RESULTS_DIR, "03_ASSEMBLY")
@@ -50,6 +50,14 @@ print(f"✅ {len(SAMPLES)} muestras detectadas: {', '.join(SAMPLES)}")
 # ==============================
 rule all:
     input:
-        expand(QC_DIR + "/{sample}_fastqc.html", sample=SAMPLES),
+        # ✅ FastQC Pre-Limpieza
+        expand(QC_DIR + "/{sample}_fastqc_pre_forward.html", sample=SAMPLES),
+        expand(QC_DIR + "/{sample}_fastqc_pre_reverse.html", sample=SAMPLES),
+
+        # ✅ FastQC Post-Limpieza
+        expand(QC_DIR + "/{sample}_fastqc_post_forward.html", sample=SAMPLES),
+        expand(QC_DIR + "/{sample}_fastqc_post_reverse.html", sample=SAMPLES),
+
+        # ✅ MultiQC
         QC_DIR + "/preQC_illumina_report.html",
         QC_DIR + "/postQC_illumina_report.html"
