@@ -1,117 +1,108 @@
 import os
 
-# =====================================================
-# Configuración del workflow
-# =====================================================
+# ==============================
+# 🔹 CONFIGURACIÓN Y VARIABLES
+# ==============================
 configfile: "config.yaml"
 
-# Definir directorios principales
-RAW_DATA_DIR = config["input_dir"].rstrip("/")
-RESULTS_DIR = config["results_dir"].rstrip("/")
-CLEAN_DATA_DIR = os.path.join(RESULTS_DIR, "02_CLEAN_DATA")
+# Variables desde config.yaml
+FORWARD_TAG = config["forward_tag"]
+REVERSE_TAG = config["reverse_tag"]
+ADAPTERS_FILE = config["adapters_file"]
+
+# Directorios principales
+RESULTS_DIR = "results"
+RAW_DATA_DIR = "raw_data"
 QC_DIR = os.path.join(RESULTS_DIR, "01_QC")
+CLEAN_DATA_DIR = os.path.join(RESULTS_DIR, "02_CLEAN_DATA")
+ASSEMBLY_DIR = os.path.join(RESULTS_DIR, "02_ASSEMBLY")
+MAPPING_DIR = os.path.join(RESULTS_DIR, "03_MAPPING")
+TRANSCRIPTOME_ASSEMBLY_DIR = os.path.join(RESULTS_DIR, "04_TRANSCRIPTOME_ASSEMBLY")
+ANNOTATION_DIR = os.path.join(RESULTS_DIR, "05_ANNOTATION")
+EXPRESSION_DIR = os.path.join(RESULTS_DIR, "06_GENE_EXPRESSION")
 
-# Crear estructura de directorios
-for d in [RESULTS_DIR, QC_DIR, CLEAN_DATA_DIR]:
-    os.makedirs(d, exist_ok=True)
+# Lista de directorios a crear
+directories = [
+    RESULTS_DIR, RAW_DATA_DIR, QC_DIR, CLEAN_DATA_DIR, ASSEMBLY_DIR,
+    MAPPING_DIR, TRANSCRIPTOME_ASSEMBLY_DIR, ANNOTATION_DIR, EXPRESSION_DIR
+]
 
-# Detectar muestras en el directorio de entrada
-SAMPLES, = glob_wildcards(RAW_DATA_DIR + "/{sample}_" + config["reverse_tag"] + ".fastq.gz")
+# Crear directorios si no existen
+for directory in directories:
+    os.makedirs(directory, exist_ok=True)
+
+print("✅ Directorios creados/verificados correctamente")
+
+# Detectar muestras
+SAMPLES, = glob_wildcards(os.path.join(RAW_DATA_DIR, "{sample}_" + FORWARD_TAG + ".fastq.gz"))
 SAMPLES = sorted(set(SAMPLES))
 
-if not SAMPLES:
-    print("⚠️ No se encontraron muestras en", RAW_DATA_DIR)
-else:
-    print(f"✅ {len(SAMPLES)} muestras detectadas: {', '.join(SAMPLES)}")
-
-# =====================================================
-# Reglas del workflow
-# =====================================================
+# ==============================
+# 🔹 REGLA PRINCIPAL (ALL)
+# ==============================
 rule all:
     input:
+        expand(QC_DIR + "/{sample}_fastqc.html", sample=SAMPLES),
         expand(QC_DIR + "/preQC_illumina_report.html"),
-        expand(QC_DIR + "/postQC_illumina_report.html"),
-        expand(CLEAN_DATA_DIR + "/{sample}_kraken_report.txt", sample=SAMPLES)
+        expand(QC_DIR + "/postQC_illumina_report.html")
 
-# ---------------------------------
-# 1️⃣ Conteo de reads en archivos FASTQ
-# ---------------------------------
+# ==============================
+# 🔹 REGLAS DE CONTROL DE CALIDAD
+# ==============================
+
 rule countReads_gz:
     input:
-        fastq=RAW_DATA_DIR + "/{sample}_" + config["forward_tag"] + ".fastq.gz"
+        fastq=RAW_DATA_DIR + "/{sample}_" + FORWARD_TAG + ".fastq.gz"
     output:
-        counts=RAW_DATA_DIR + "/{sample}_" + config["forward_tag"] + "_read_count.txt"
+        counts=RAW_DATA_DIR + "/{sample}_" + FORWARD_TAG + "_read_count.txt"
+    message:
+        "📊 Counting reads in {input.fastq}"
     conda:
-        "envs/QC.yaml"
+        "env/QC.yaml"
     shell:
         """
         echo $(( $(zgrep -Ec "$" {input.fastq}) / 4 )) > {output.counts}
         """
 
-# ---------------------------------
-# 2️⃣ FastQC Pre-Trimado
-# ---------------------------------
 rule fastQC_pre:
     input:
-        fastq=RAW_DATA_DIR + "/{sample}_" + config["forward_tag"] + ".fastq.gz"
+        raw_fastq=RAW_DATA_DIR + "/{sample}_" + FORWARD_TAG + ".fastq.gz"
     output:
-        html=temp(QC_DIR + "/{sample}_fastqc.html"),
+        html=QC_DIR + "/{sample}_fastqc.html",
         zipped=QC_DIR + "/{sample}_fastqc.zip"
+    message:
+        "🧪 Running FastQC on raw reads for {wildcards.sample}"
     conda:
-        "envs/QC.yaml"
+        "env/QC.yaml"
     shell:
         """
-        fastqc {input.fastq} -o {QC_DIR}
+        fastqc {input.raw_fastq} -o {QC_DIR}
         """
 
-# ---------------------------------
-# 3️⃣ Trimmomatic (Recorte de adaptadores y calidad)
-# ---------------------------------
-rule trim_adapters:
-    input:
-        forward=RAW_DATA_DIR + "/{sample}_" + config["forward_tag"] + ".fastq.gz",
-        reverse=RAW_DATA_DIR + "/{sample}_" + config["reverse_tag"] + ".fastq.gz",
-        adapters=config["adapters_file"]
-    output:
-        forward_paired=temp(CLEAN_DATA_DIR + "/{sample}_forward_paired.fastq.gz"),
-        reverse_paired=temp(CLEAN_DATA_DIR + "/{sample}_reverse_paired.fastq.gz")
-    conda:
-        "envs/trimmomatic.yaml"
-    shell:
-        """
-        trimmomatic PE -threads 4 -phred33 \
-            {input.forward} {input.reverse} \
-            {output.forward_paired} {output.reverse_paired} \
-            ILLUMINACLIP:{input.adapters}:2:30:10:1:true \
-            LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
-        """
-
-# ---------------------------------
-# 4️⃣ FastQC Post-Trimado
-# ---------------------------------
 rule fastQC_post:
     input:
-        fastq=CLEAN_DATA_DIR + "/{sample}_forward_paired.fastq.gz"
+        cleaned_fastq=CLEAN_DATA_DIR + "/{sample}_forward_paired.fastq.gz"
     output:
-        html=temp(QC_DIR + "/{sample}_fastqc.html"),
-        zipped=QC_DIR + "/{sample}_fastqc.zip"
+        html=QC_DIR + "/{sample}_fastqc_post.html",
+        zipped=QC_DIR + "/{sample}_fastqc_post.zip"
+    message:
+        "🧪 Running FastQC on cleaned reads for {wildcards.sample}"
     conda:
-        "envs/QC.yaml"
+        "env/QC.yaml"
     shell:
         """
-        fastqc {input.fastq} -o {QC_DIR}
+        fastqc {input.cleaned_fastq} -o {QC_DIR}
         """
 
-# ---------------------------------
-# 5️⃣ MultiQC para reportes globales
-# ---------------------------------
 rule preMultiQC:
     input:
         expand(QC_DIR + "/{sample}_fastqc.zip", sample=SAMPLES)
     output:
         multiqc=QC_DIR + "/preQC_illumina_report.html"
+    message:
+        "📊 Generating MultiQC report for pre-QC data"
     conda:
-        "envs/QC.yaml"
+        "env/QC.yaml"
     shell:
         """
         multiqc {QC_DIR} -o {QC_DIR} -n preQC_illumina_report.html
@@ -119,30 +110,39 @@ rule preMultiQC:
 
 rule postMultiQC:
     input:
-        expand(QC_DIR + "/{sample}_fastqc.zip", sample=SAMPLES)
+        expand(QC_DIR + "/{sample}_fastqc_post.zip", sample=SAMPLES)
     output:
         multiqc=QC_DIR + "/postQC_illumina_report.html"
+    message:
+        "📊 Generating MultiQC report for post-QC data"
     conda:
-        "envs/QC.yaml"
+        "env/QC.yaml"
     shell:
         """
         multiqc {QC_DIR} -o {QC_DIR} -n postQC_illumina_report.html
         """
 
-# ---------------------------------
-# 6️⃣ Kraken2 para detección de contaminación
-# ---------------------------------
-rule contaminants_KRAKEN:
+# ==============================
+# 🔹 REGLA PARA TRIMMOMATIC
+# ==============================
+rule trim_adapters_quality:
     input:
+        forward_file=RAW_DATA_DIR + "/{sample}_" + FORWARD_TAG + ".fastq.gz",
+        reverse_file=RAW_DATA_DIR + "/{sample}_" + REVERSE_TAG + ".fastq.gz",
+        adapters=ADAPTERS_FILE
+    output:
         forward_paired=CLEAN_DATA_DIR + "/{sample}_forward_paired.fastq.gz",
         reverse_paired=CLEAN_DATA_DIR + "/{sample}_reverse_paired.fastq.gz"
-    output:
-        kraken_report=CLEAN_DATA_DIR + "/{sample}_kraken_report.txt"
+    message:
+        "✂️ Trimming adapters for {wildcards.sample}"
     conda:
-        "envs/kraken.yaml"
+        "env/QC.yaml"
     shell:
         """
-        kraken2 --db {config["kraken_db"]} --threads 4 \
-            --paired {input.forward_paired} {input.reverse_paired} \
-            --report {output.kraken_report}
+        trimmomatic PE -threads 8 -phred33 \
+            {input.forward_file} {input.reverse_file} \
+            {output.forward_paired} /dev/null \
+            {output.reverse_paired} /dev/null \
+            ILLUMINACLIP:{input.adapters}:2:30:10:1:true \
+            LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
         """
