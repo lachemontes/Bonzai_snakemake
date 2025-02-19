@@ -22,8 +22,8 @@ rule fastQC_pre:
     input:
         raw_fastq=dirs_dict["RAW_DATA_DIR"] + "/{sample}_" + config["forward_tag"] + ".fastq.gz"
     output:
-        html=dirs_dict["QC_DIR"] + "/{sample}_fastqc.html",
-        zipped=dirs_dict["QC_DIR"] + "/{sample}_fastqc.zip"
+        html=dirs_dict["QC_DIR"] + "/{sample}_fastqc_pre.html",  # Cambié el nombre de salida
+        zipped=dirs_dict["QC_DIR"] + "/{sample}_fastqc_pre.zip"  # Cambié el nombre de salida
     message:
         "🔍 Ejecutando FastQC en {input.raw_fastq}"
     conda:
@@ -40,7 +40,7 @@ rule fastQC_pre:
 # ================================
 rule preMultiQC:
     input:
-        zipped=expand(dirs_dict["QC_DIR"] + "/{sample}_fastqc.zip", sample=SAMPLES)
+        zipped=expand(dirs_dict["QC_DIR"] + "/{sample}_fastqc_pre.zip", sample=SAMPLES)  # Cambié a fastqc_pre
     output:
         multiqc=dirs_dict["QC_DIR"] + "/preQC_illumina_report.html"
     params:
@@ -65,8 +65,8 @@ rule fastQC_post:
     input:
         raw_fastq=dirs_dict["CLEAN_DATA_DIR"] + "/{sample}_forward_paired.fastq.gz"
     output:
-        html=dirs_dict["QC_DIR"] + "/{sample}_fastqc.html",
-        zipped=dirs_dict["QC_DIR"] + "/{sample}_fastqc.zip"
+        html=dirs_dict["QC_DIR"] + "/{sample}_fastqc_post.html",  # Cambié el nombre de salida
+        zipped=dirs_dict["QC_DIR"] + "/{sample}_fastqc_post.zip"  # Cambié el nombre de salida
     message:
         "🔍 Ejecutando FastQC en {input.raw_fastq} después de limpieza"
     conda:
@@ -83,7 +83,7 @@ rule fastQC_post:
 # ================================
 rule postMultiQC:
     input:
-        zipped=expand(dirs_dict["QC_DIR"] + "/{sample}_fastqc.zip", sample=SAMPLES)
+        zipped=expand(dirs_dict["QC_DIR"] + "/{sample}_fastqc_post.zip", sample=SAMPLES)  # Cambié a fastqc_post
     output:
         multiqc=dirs_dict["QC_DIR"] + "/postQC_illumina_report.html"
     params:
