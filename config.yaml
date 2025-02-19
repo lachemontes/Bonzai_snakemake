@@ -1,0 +1,11 @@
+input_dir: "/cfs/klemming/projects/supr/naiss2023-23-109/00_RAW_DATA"
+results_dir: "/cfs/klemming/projects/supr/naiss2023-23-109/BONZAI_clean/results"
+forward_tag: "R1_001"
+reverse_tag: "R2_001"
+adapters_file: "db/adapters/adapters.fa"
+kraken_db: "/path/to/kraken_db"
+trimmomatic_leading: 3
+trimmomatic_trailing: 3
+trimmomatic_window_size: 4
+trimmomatic_window_quality: 15
+trimmomatic_minlen: 36
