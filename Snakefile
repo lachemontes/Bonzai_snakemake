@@ -1,4 +1,5 @@
 import os
+import glob
 
 # ==============================
 # 🔹 CONFIGURACIÓN Y VARIABLES
@@ -15,11 +16,11 @@ RESULTS_DIR = "results"
 RAW_DATA_DIR = "raw_data"
 QC_DIR = os.path.join(RESULTS_DIR, "01_QC")
 CLEAN_DATA_DIR = os.path.join(RESULTS_DIR, "02_CLEAN_DATA")
-ASSEMBLY_DIR = os.path.join(RESULTS_DIR, "02_ASSEMBLY")
-MAPPING_DIR = os.path.join(RESULTS_DIR, "03_MAPPING")
-TRANSCRIPTOME_ASSEMBLY_DIR = os.path.join(RESULTS_DIR, "04_TRANSCRIPTOME_ASSEMBLY")
-ANNOTATION_DIR = os.path.join(RESULTS_DIR, "05_ANNOTATION")
-EXPRESSION_DIR = os.path.join(RESULTS_DIR, "06_GENE_EXPRESSION")
+ASSEMBLY_DIR = os.path.join(RESULTS_DIR, "03_ASSEMBLY")
+MAPPING_DIR = os.path.join(RESULTS_DIR, "04_MAPPING")
+TRANSCRIPTOME_ASSEMBLY_DIR = os.path.join(RESULTS_DIR, "05_TRANSCRIPTOME_ASSEMBLY")
+ANNOTATION_DIR = os.path.join(RESULTS_DIR, "06_ANNOTATION")
+EXPRESSION_DIR = os.path.join(RESULTS_DIR, "07_GENE_EXPRESSION")
 
 # Lista de directorios a crear
 directories = [
@@ -43,8 +44,8 @@ SAMPLES = sorted(set(SAMPLES))
 rule all:
     input:
         expand(QC_DIR + "/{sample}_fastqc.html", sample=SAMPLES),
-        expand(QC_DIR + "/preQC_illumina_report.html"),
-        expand(QC_DIR + "/postQC_illumina_report.html")
+        QC_DIR + "/preQC_illumina_report.html",
+        QC_DIR + "/postQC_illumina_report.html"
 
 # ==============================
 # 🔹 REGLAS DE CONTROL DE CALIDAD
